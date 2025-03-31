@@ -1,12 +1,11 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
   "metadata": {
-    "type": "Notebook",
-    "displayName": "init_database",
-    "description": "New notebook"
+    "type": "DataPipeline",
+    "displayName": "load_raw_github"
   },
   "config": {
     "version": "2.0",
-    "logicalId": "a61e756e-60aa-8df8-480e-be183d978e00"
+    "logicalId": "14b773a2-7c23-8fbd-408a-1d6f9ba9e828"
   }
 }
