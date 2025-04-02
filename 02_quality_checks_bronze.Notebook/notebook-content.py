@@ -31,9 +31,7 @@ from datetime import datetime
 # Note: In Fabric notebooks, you can use either:
 # %pip install great_expectations
 # or the following approach which works in both notebook and script contexts:
-import sys
-import subprocess
-subprocess.check_call([sys.executable, "-m", "pip", "install", "great_expectations"])
+%pip install great_expectations
 
 # METADATA ********************
 
