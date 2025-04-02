@@ -25,6 +25,9 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.window import Window
+from pyspark.sql.types import *
+from datetime import datetime
+import json
 
 # METADATA ********************
 
@@ -37,6 +40,136 @@ from pyspark.sql.window import Window
 
 spark = SparkSession.builder.getOrCreate()
 
+# Configuration parameters for transformation
+# These can be modified without changing the transformation logic
+config = {
+    # General settings
+    "overwrite_mode": "overwrite",  # Options: "overwrite", "append", "merge"
+    "add_metadata_columns": True,   # Whether to add metadata columns like dwh_create_date
+    
+    # Table-specific settings
+    "tables": {
+        "crm_cust_info": {
+            "source_table": "bronze.crm_cust_info",
+            "target_table": "silver.crm_cust_info",
+            "primary_key": "cst_id",
+            "deduplication_enabled": True,
+            "null_handling": "filter"  # Options: "filter", "replace"
+        },
+        "crm_prd_info": {
+            "source_table": "bronze.crm_prd_info",
+            "target_table": "silver.crm_prd_info",
+            "primary_key": "prd_id",
+            "deduplication_enabled": False
+        },
+        "crm_sales_details": {
+            "source_table": "bronze.crm_sales_details",
+            "target_table": "silver.crm_sales_details",
+            "primary_key": "sls_ord_num",
+            "deduplication_enabled": False
+        },
+        "erp_cust_az12": {
+            "source_table": "bronze.erp_cust_az12",
+            "target_table": "silver.erp_cust_az12",
+            "primary_key": "cid",
+            "deduplication_enabled": False
+        },
+        "erp_loc_a101": {
+            "source_table": "bronze.erp_loc_a101",
+            "target_table": "silver.erp_loc_a101",
+            "primary_key": "cid",
+            "deduplication_enabled": False
+        },
+        "erp_px_cat_g1v2": {
+            "source_table": "bronze.erp_px_cat_g1v2",
+            "target_table": "silver.erp_px_cat_g1v2",
+            "primary_key": "id",
+            "deduplication_enabled": False
+        }
+    },
+    
+    # Mapping dictionaries for standardization
+    "gender_mapping": {
+        "F": "Female", 
+        "FEMALE": "Female", 
+        "M": "Male", 
+        "MALE": "Male"
+    },
+    "marital_status_mapping": {
+        "S": "Single",
+        "M": "Married"
+    },
+    "product_line_mapping": {
+        "M": "Mountain",
+        "R": "Road",
+        "S": "Other Sales",
+        "T": "Touring"
+    },
+    "country_mapping": {
+        "DE": "Germany",
+        "US": "United States",
+        "USA": "United States"
+    }
+}
+
+# Helper functions for common transformation tasks
+def add_metadata_columns(df):
+    """Add standard metadata columns to the dataframe"""
+    if config["add_metadata_columns"]:
+        return df.withColumn("dwh_create_date", current_date())
+    return df
+
+def deduplicate_by_key(df, key_column, date_column=None):
+    """
+    Remove duplicate records keeping only the latest version
+    
+    Args:
+        df: DataFrame to deduplicate
+        key_column: Column to use as the primary key
+        date_column: Optional date column to determine the latest record
+    
+    Returns:
+        Deduplicated DataFrame
+    """
+    if date_column:
+        # Keep the latest record based on date
+        window_spec = Window.partitionBy(key_column).orderBy(col(date_column).desc())
+    else:
+        # If no date column, just use row_number (arbitrary but deterministic)
+        window_spec = Window.partitionBy(key_column).orderBy(lit(1))
+        
+    return df.withColumn("flag_last", row_number().over(window_spec)) \
+             .filter("flag_last = 1") \
+             .drop("flag_last")
+
+def standardize_column(df, column_name, mapping_dict, default_value="n/a"):
+    """
+    Standardize values in a column based on a mapping dictionary
+    
+    Args:
+        df: DataFrame containing the column
+        column_name: Name of the column to standardize
+        mapping_dict: Dictionary mapping source values to target values
+        default_value: Value to use for unmapped values
+        
+    Returns:
+        DataFrame with standardized column
+    """
+    # Create a when clause for each mapping
+    when_clause = None
+    for source, target in mapping_dict.items():
+        condition = upper(trim(col(column_name))) == source
+        if when_clause is None:
+            when_clause = when(condition, target)
+        else:
+            when_clause = when_clause.when(condition, target)
+    
+    # Add the otherwise clause
+    when_clause = when_clause.otherwise(default_value)
+    
+    # Apply the transformation
+    return df.withColumn(column_name, when_clause)
+
 # METADATA ********************
 
 # META {
@@ -47,25 +180,55 @@ spark = SparkSession.builder.getOrCreate()
 # CELL ********************
 
 def transform_crm_cust_info():
-    df = spark.table("bronze.crm_cust_info")
-
-    result = df.where("cst_id IS NOT NULL") \
-        .withColumn("flag_last", row_number().over(Window.partitionBy("cst_id").orderBy(col("cst_create_date").desc()))) \
-        .filter("flag_last = 1") \
-        .withColumn("cst_firstname", trim(col("cst_firstname"))) \
-        .withColumn("cst_lastname", trim(col("cst_lastname"))) \
-        .withColumn("cst_marital_status", when(upper(trim(col("cst_marital_status"))) == "S", "Single")
-                                         .when(upper(trim(col("cst_marital_status"))) == "M", "Married")
-                                         .otherwise("n/a")) \
-        .withColumn("cst_gndr", when(upper(trim(col("cst_gndr"))) == "F", "Female")
-                               .when(upper(trim(col("cst_gndr"))) == "M", "Male")
-                               .otherwise("n/a")) \
-        .withColumn("dwh_create_date", current_date()) \
-        .drop("flag_last")
-
-    result.write.format("delta") \
-        .mode("overwrite") \
-        .saveAsTable("silver.crm_cust_info")
+    """
+    Transform CRM customer information from bronze to silver layer
+    
+    Business Rules:
+    1. Filter out records with null customer IDs
+    2. Deduplicate by customer ID, keeping only the latest record by creation date
+    3. Standardize first and last names by trimming whitespace
+    4. Standardize marital status codes to full text values
+    5. Standardize gender codes to full text values
+    6. Add metadata columns for data warehouse tracking
+    """
+    # Get table configuration
+    table_config = config["tables"]["crm_cust_info"]
+    
+    # Step 1: Load source data
+    print(f"Loading data from {table_config['source_table']}")
+    df = spark.table(table_config["source_table"])
+    
+    # Step 2: Filter null keys if configured
+    if table_config.get("null_handling") == "filter":
+        print("Filtering records with null primary keys")
+        df = df.where(f"{table_config['primary_key']} IS NOT NULL")
+    
+    # Step 3: Deduplicate if enabled
+    if table_config.get("deduplication_enabled", False):
+        print(f"Deduplicating by {table_config['primary_key']} using cst_create_date")
+        df = deduplicate_by_key(df, table_config["primary_key"], "cst_create_date")
+    
+    # Step 4: Clean and standardize text fields
+    print("Standardizing text fields")
+    df = df.withColumn("cst_firstname", trim(col("cst_firstname"))) \
+           .withColumn("cst_lastname", trim(col("cst_lastname")))
+    
+    # Step 5: Standardize categorical fields using mapping dictionaries
+    print("Standardizing categorical fields")
+    df = standardize_column(df, "cst_marital_status", config["marital_status_mapping"])
+    df = standardize_column(df, "cst_gndr", config["gender_mapping"])
+    
+    # Step 6: Add metadata columns
+    df = add_metadata_columns(df)
+    
+    # Step 7: Write to target table
+    print(f"Writing to {table_config['target_table']}")
+    df.write.format("delta") \
+        .mode(config["overwrite_mode"]) \
+        .saveAsTable(table_config["target_table"])
+    
+    print(f"✅ Completed transformation of {table_config['source_table']} to {table_config['target_table']}")
+    return df
 
 # METADATA ********************
 
@@ -77,23 +240,56 @@ def transform_crm_cust_info():
 # CELL ********************
 
 def transform_crm_prd_info():
-    df = spark.table("bronze.crm_prd_info")
-
-    result = df.withColumn("cat_id", regexp_replace(substring(col("prd_key"), 1, 5), "-", "_")) \
-        .withColumn("prd_key", expr("substring(prd_key, 7)")) \
-        .withColumn("prd_line", when(upper(trim(col("prd_line"))) == "M", "Mountain")
-                                 .when(upper(trim(col("prd_line"))) == "R", "Road")
-                                 .when(upper(trim(col("prd_line"))) == "S", "Other Sales")
-                                 .when(upper(trim(col("prd_line"))) == "T", "Touring")
-                                 .otherwise("n/a")) \
-        .withColumn("prd_cost", coalesce(col("prd_cost"), lit(0))) \
-        .withColumn("prd_start_dt", to_date(col("prd_start_dt"))) \
-        .withColumn("prd_end_dt", to_date(col("prd_end_dt"))) \
-        .withColumn("dwh_create_date", current_date())
-
-    result.write.format("delta") \
-        .mode("overwrite") \
-        .saveAsTable("silver.crm_prd_info")
+    """
+    Transform CRM product information from bronze to silver layer
+    
+    Business Rules:
+    1. Extract category ID from product key (first 5 characters)
+    2. Clean product key by removing category prefix
+    3. Standardize product line codes to full text values
+    4. Replace null product costs with 0
+    5. Convert date strings to proper date format
+    6. Add metadata columns for data warehouse tracking
+    """
+    # Get table configuration
+    table_config = config["tables"]["crm_prd_info"]
+    
+    # Step 1: Load source data
+    print(f"Loading data from {table_config['source_table']}")
+    df = spark.table(table_config["source_table"])
+    
+    # Step 2: Extract category ID from product key
+    print("Extracting category ID from product key")
+    df = df.withColumn("cat_id", regexp_replace(substring(col("prd_key"), 1, 5), "-", "_"))
+    
+    # Step 3: Clean product key by removing category prefix
+    print("Cleaning product key")
+    df = df.withColumn("prd_key", expr("substring(prd_key, 7)"))
+    
+    # Step 4: Standardize product line using mapping dictionary
+    print("Standardizing product line")
+    df = standardize_column(df, "prd_line", config["product_line_mapping"])
+    
+    # Step 5: Handle missing values
+    print("Handling missing values")
+    df = df.withColumn("prd_cost", coalesce(col("prd_cost"), lit(0)))
+    
+    # Step 6: Convert date strings to proper date format
+    print("Converting date strings to date format")
+    df = df.withColumn("prd_start_dt", to_date(col("prd_start_dt"))) \
+           .withColumn("prd_end_dt", to_date(col("prd_end_dt")))
+    
+    # Step 7: Add metadata columns
+    df = add_metadata_columns(df)
+    
+    # Step 8: Write to target table
+    print(f"Writing to {table_config['target_table']}")
+    df.write.format("delta") \
+        .mode(config["overwrite_mode"]) \
+        .saveAsTable(table_config["target_table"])
+    
+    print(f"✅ Completed transformation of {table_config['source_table']} to {table_config['target_table']}")
+    return df
 
 # METADATA ********************
 
