@@ -89,8 +89,16 @@ tables = [
 for table_name, columns in tables:
     print(f"\n=== Quality Checks for {table_name} ===")
     df = spark.table(table_name)
-
+    
+    # Get actual columns in the dataframe
+    actual_columns = df.columns
+    
     for col in columns:
+        # Skip columns that don't exist in the dataframe
+        if col not in actual_columns:
+            print(f"\n-- WARNING: Column '{col}' does not exist in {table_name}, skipping checks --")
+            continue
+            
         print(f"\n-- Nulls in {col} --")
         check_nulls(df, col).show()
 
