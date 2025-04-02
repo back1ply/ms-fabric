@@ -68,7 +68,7 @@ def distinct_values(df, column):
 
 # Define bronze tables to check
 tables = [
-    ("bronze.crm_cust_info", ["cst_id", "cst_key", "cst_firstname", "cst_lastname", "cst_marital_status", "cst_gndr"]),
+    ("bronze.crm_cust_info", ["cst_id", "cst_firstname", "cst_lastname", "cst_marital_status", "cst_gndr", "cst_create_date"]),
     ("bronze.crm_prd_info", ["prd_id", "prd_key", "prd_nm", "prd_cost", "prd_line", "prd_start_dt", "prd_end_dt"]),
     ("bronze.crm_sales_details", ["sls_ord_num", "sls_prd_key", "sls_cust_id", "sls_order_dt", "sls_ship_dt", "sls_due_dt", "sls_sales", "sls_quantity", "sls_price"]),
     ("bronze.erp_cust_az12", ["cid", "bdate", "gen"]),
@@ -97,7 +97,7 @@ for table_name, columns in tables:
         print(f"\n-- Trim Issues in {col} --")
         check_trim_issues(df, col).show()
 
-        if col.endswith("_id") or col in ["cst_key", "prd_key", "sls_ord_num"]:
+        if col.endswith("_id") or col in ["prd_key", "sls_ord_num"]:
             print(f"\n-- Duplicates in {col} --")
             check_duplicates(df, col).show()
 
