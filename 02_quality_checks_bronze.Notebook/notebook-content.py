@@ -178,7 +178,7 @@ class DataQualityFramework:
         """Check for whitespace issues in a column"""
         # Only check string columns
         if column not in df.schema.names or not any(
-            isinstance(field.dataType, t) for t in [spark.sql.types.StringType] 
+            isinstance(field.dataType, t) for t in [spark.sql.StringType] 
             for field in df.schema.fields if field.name == column
         ):
             return {"status": "SKIP", "message": "Not a string column"}
