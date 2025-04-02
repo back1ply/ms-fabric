@@ -18,6 +18,8 @@
 # CELL ********************
 
 import pandas as pd
+import requests
+from io import StringIO
 
 # METADATA ********************
 
@@ -48,8 +50,13 @@ def load_and_write(file_list, system):
         print(f"Downloading: {url}")
 
         try:
-            # Use pandas to download from HTTP
-            pdf = pd.read_csv(url, timeout=30)  # Add timeout to prevent hanging
+            # Use requests with timeout
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()  # Raise exception for HTTP errors
+            
+            # Convert response content to pandas DataFrame
+            content = StringIO(response.text)
+            pdf = pd.read_csv(content)
             
             # Convert to Spark DataFrame
             sdf = spark.createDataFrame(pdf)
@@ -60,6 +67,35 @@ def load_and_write(file_list, system):
             
             print(f"✅ Successfully saved to: {output_path}")
             
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Error downloading {url}: {str(e)}")
+            # Implement retry logic for network/HTTP errors
+            retry_count = 3
+            while retry_count > 0:
+                try:
+                    print(f"Retrying download ({retry_count} attempts left)...")
+                    # Wait before retry (exponential backoff)
+                    import time
+                    time.sleep(2 * (4 - retry_count))
+                    
+                    # Retry download with requests
+                    response = requests.get(url, timeout=30)
+                    response.raise_for_status()
+                    content = StringIO(response.text)
+                    pdf = pd.read_csv(content)
+                    sdf = spark.createDataFrame(pdf)
+                    sdf.coalesce(1).write.mode("overwrite").option("header", True).csv(output_path)
+                    
+                    print(f"✅ Successfully saved to: {output_path} after retry")
+                    break
+                    
+                except Exception as retry_e:
+                    print(f"Retry failed: {str(retry_e)}")
+                    retry_count -= 1
+                    
+            if retry_count == 0:
+                print(f"❌ All retries failed for {url}. Skipping this file.")
+                
         except pd.errors.EmptyDataError:
             print(f"❌ Error: The file at {url} is empty or has no columns.")
             # Log the error and continue with next file
@@ -71,18 +107,21 @@ def load_and_write(file_list, system):
             continue
             
         except Exception as e:
-            print(f"❌ Error downloading or processing {url}: {str(e)}")
-            # Implement retry logic if needed
+            print(f"❌ Error processing {url}: {str(e)}")
+            # Implement retry logic for other errors
             retry_count = 3
             while retry_count > 0:
                 try:
-                    print(f"Retrying download ({retry_count} attempts left)...")
-                    # Wait before retry (exponential backoff)
+                    print(f"Retrying processing ({retry_count} attempts left)...")
+                    # Wait before retry
                     import time
                     time.sleep(2 * (4 - retry_count))
                     
-                    # Retry download
-                    pdf = pd.read_csv(url, timeout=30)
+                    # Retry with requests
+                    response = requests.get(url, timeout=30)
+                    response.raise_for_status()
+                    content = StringIO(response.text)
+                    pdf = pd.read_csv(content)
                     sdf = spark.createDataFrame(pdf)
                     sdf.coalesce(1).write.mode("overwrite").option("header", True).csv(output_path)
                     
