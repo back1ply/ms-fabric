@@ -1,0 +1,1 @@
+{"kind":"Pipeline","name":"load_data_warehouse","type":"Microsoft.Fabric/workspaces/artifacts/pipelines"}

@@ -1,0 +1,86 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "type": "NotebookActivity",
+        "typeProperties": {
+          "notebook": {
+            "referenceName": "00_load_bronze_data",
+            "type": "NotebookReference"
+          },
+          "parameters": {},
+          "snapshot": false
+        },
+        "name": "Load Bronze Data",
+        "description": "Download data from GitHub and load into bronze tables",
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "dependsOn": []
+      },
+      {
+        "type": "NotebookActivity",
+        "typeProperties": {
+          "notebook": {
+            "referenceName": "01_transform_bronze_to_silver",
+            "type": "NotebookReference"
+          },
+          "parameters": {},
+          "snapshot": false
+        },
+        "name": "Transform Bronze to Silver",
+        "description": "Check quality and transform bronze data to silver layer",
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "dependsOn": [
+          {
+            "activity": "Load Bronze Data",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "NotebookActivity",
+        "typeProperties": {
+          "notebook": {
+            "referenceName": "02_transform_silver_to_gold",
+            "type": "NotebookReference"
+          },
+          "parameters": {},
+          "snapshot": false
+        },
+        "name": "Transform Silver to Gold",
+        "description": "Transform silver data to gold layer for analytics",
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "dependsOn": [
+          {
+            "activity": "Transform Bronze to Silver",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      }
+    ],
+    "annotations": [],
+    "lastPublishTime": "2023-04-03T00:15:00Z"
+  },
+  "type": "Microsoft.Fabric/pipelines"
+}
