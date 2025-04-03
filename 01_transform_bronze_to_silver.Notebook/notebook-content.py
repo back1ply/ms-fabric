@@ -282,7 +282,7 @@ print("✅ Transformed silver.erp_px_cat_g1v2")
 
 # CELL ********************
 
-print("\n✅ All Bronze ➝ Silver transformations completed")
+print("\n✅ All Bronze ➝ Silver transformations completed !")
 
 # METADATA ********************
 

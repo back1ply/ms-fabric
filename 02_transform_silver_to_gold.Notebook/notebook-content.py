@@ -208,7 +208,7 @@ print("✅ Created sales summary view")
 
 # CELL ********************
 
-print("\n✅ All Silver ➝ Gold transformations completed")
+print("\n✅ All Silver ➝ Gold transformations completed !")
 
 # METADATA ********************
 

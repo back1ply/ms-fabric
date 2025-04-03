@@ -117,11 +117,11 @@ def load_to_bronze(file_list, system):
 # CELL ********************
 
 # Load CRM data
-print("\n=== Loading CRM Data ===")
+print("\n== Loading CRM Data ==")
 load_to_bronze(crm_files, "crm")
 
 # Load ERP data
-print("\n=== Loading ERP Data ===")
+print("\n== Loading ERP Data ==")
 load_to_bronze(erp_files, "erp")
 
 print("\n✅ All bronze data loaded successfully")
