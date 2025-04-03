@@ -1,4 +1,5 @@
 {
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/contentFile/pipeline/2.0.0/schema.json",
   "properties": {
     "activities": [
       {

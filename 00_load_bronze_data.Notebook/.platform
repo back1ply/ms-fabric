@@ -1,1 +1,12 @@
-{"kind":"Notebook","name":"00_load_bronze_data","type":"Microsoft.Fabric/workspaces/artifacts/notebooks"}
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "00_load_bronze_data",
+    "description": "Download data from GitHub and load into bronze tables"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "a61e756e-60aa-8df8-480e-be183d978e01"
+  }
+}
