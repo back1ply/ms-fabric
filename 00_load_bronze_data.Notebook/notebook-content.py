@@ -54,13 +54,18 @@ schemas = {
     "sales_details": StructType([
         StructField("sls_ord_num", StringType(), False),
         StructField("sls_prd_key", StringType(), True),
-        StructField("sls_cust_id", StringType(), True),
+        StructField("sls_cust_id", IntegerType(), True),  # Changed from StringType to IntegerType
         StructField("sls_order_dt", StringType(), True),
         StructField("sls_ship_dt", StringType(), True),
         StructField("sls_due_dt", StringType(), True),
         StructField("sls_sales", DoubleType(), True),
         StructField("sls_quantity", IntegerType(), True),
         StructField("sls_price", DoubleType(), True)
+    ]),
+    "CUST_AZ12": StructType([  # Added explicit schema for CUST_AZ12
+        StructField("CID", StringType(), False),
+        StructField("BDATE", DateType(), True),  # Using DateType for BDATE
+        StructField("GEN", StringType(), True)
     ])
 }
 
@@ -89,6 +94,18 @@ def load_to_bronze(file_list, system):
             # Read into pandas first to handle small files efficiently
             pdf = pd.read_csv(content)
             
+            # Apply type conversions for specific files
+            if file == "cust_info":
+                # Ensure cst_id is treated as string
+                pdf['cst_id'] = pdf['cst_id'].astype(str)
+            elif file == "sales_details":
+                # Ensure sls_cust_id is treated as integer
+                pdf['sls_cust_id'] = pdf['sls_cust_id'].astype(int)
+            elif file == "CUST_AZ12":
+                # Convert BDATE to datetime if it exists
+                if 'BDATE' in pdf.columns:
+                    pdf['BDATE'] = pd.to_datetime(pdf['BDATE'], errors='coerce')
+            
             # Convert to Spark DataFrame with schema if defined, otherwise infer
             if file in schemas:
                 sdf = spark.createDataFrame(pdf, schema=schemas[file])
@@ -115,6 +132,9 @@ def load_to_bronze(file_list, system):
 # META }
 
 # CELL ********************
+
+# Disable Arrow optimization if needed
+# spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "false")
 
 # Load CRM data
 print("\n== Loading CRM Data ==")
