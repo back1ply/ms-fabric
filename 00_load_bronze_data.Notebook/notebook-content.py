@@ -41,31 +41,51 @@ crm_files = ["cust_info", "prd_info", "sales_details"]
 erp_files = ["CUST_AZ12", "LOC_A101", "PX_CAT_G1V2"]
 base_url = "https://raw.githubusercontent.com/DataWithBaraa/sql-data-warehouse-project/refs/heads/main/datasets"
 
-# Define schemas for tables that need explicit typing
+# Define schemas for all tables to match SQL Server definitions
 schemas = {
     "cust_info": StructType([
-        StructField("cst_id", StringType(), False),
+        StructField("cst_id", IntegerType(), True),
+        StructField("cst_key", StringType(), True),
         StructField("cst_firstname", StringType(), True),
         StructField("cst_lastname", StringType(), True),
         StructField("cst_marital_status", StringType(), True),
         StructField("cst_gndr", StringType(), True),
         StructField("cst_create_date", DateType(), True)
     ]),
-    "sales_details": StructType([
-        StructField("sls_ord_num", StringType(), False),
-        StructField("sls_prd_key", StringType(), True),
-        StructField("sls_cust_id", IntegerType(), True),  # Changed from StringType to IntegerType
-        StructField("sls_order_dt", StringType(), True),
-        StructField("sls_ship_dt", StringType(), True),
-        StructField("sls_due_dt", StringType(), True),
-        StructField("sls_sales", DoubleType(), True),
-        StructField("sls_quantity", IntegerType(), True),
-        StructField("sls_price", DoubleType(), True)
+    "prd_info": StructType([
+        StructField("prd_id", IntegerType(), True),
+        StructField("prd_key", StringType(), True),
+        StructField("prd_nm", StringType(), True),
+        StructField("prd_cost", IntegerType(), True),
+        StructField("prd_line", StringType(), True),
+        StructField("prd_start_dt", DateType(), True),
+        StructField("prd_end_dt", DateType(), True)
     ]),
-    "CUST_AZ12": StructType([  # Added explicit schema for CUST_AZ12
-        StructField("CID", StringType(), False),
-        StructField("BDATE", DateType(), True),  # Using DateType for BDATE
-        StructField("GEN", StringType(), True)
+    "sales_details": StructType([
+        StructField("sls_ord_num", StringType(), True),
+        StructField("sls_prd_key", StringType(), True),
+        StructField("sls_cust_id", IntegerType(), True),
+        StructField("sls_order_dt", IntegerType(), True),
+        StructField("sls_ship_dt", IntegerType(), True),
+        StructField("sls_due_dt", IntegerType(), True),
+        StructField("sls_sales", IntegerType(), True),
+        StructField("sls_quantity", IntegerType(), True),
+        StructField("sls_price", IntegerType(), True)
+    ]),
+    "CUST_AZ12": StructType([
+        StructField("cid", StringType(), True),
+        StructField("bdate", DateType(), True),
+        StructField("gen", StringType(), True)
+    ]),
+    "LOC_A101": StructType([
+        StructField("cid", StringType(), True),
+        StructField("cntry", StringType(), True)
+    ]),
+    "PX_CAT_G1V2": StructType([
+        StructField("id", StringType(), True),
+        StructField("cat", StringType(), True),
+        StructField("subcat", StringType(), True),
+        StructField("maintenance", StringType(), True)
     ])
 }
 
@@ -96,15 +116,33 @@ def load_to_bronze(file_list, system):
             
             # Apply type conversions for specific files
             if file == "cust_info":
-                # Ensure cst_id is treated as string
-                pdf['cst_id'] = pdf['cst_id'].astype(str)
+                # Ensure cst_id is treated as integer
+                pdf['cst_id'] = pd.to_numeric(pdf['cst_id'], errors='coerce')
+            elif file == "prd_info":
+                # Ensure prd_id and prd_cost are integers
+                pdf['prd_id'] = pd.to_numeric(pdf['prd_id'], errors='coerce')
+                pdf['prd_cost'] = pd.to_numeric(pdf['prd_cost'], errors='coerce')
+                # Convert date fields
+                pdf['prd_start_dt'] = pd.to_datetime(pdf['prd_start_dt'], errors='coerce')
+                pdf['prd_end_dt'] = pd.to_datetime(pdf['prd_end_dt'], errors='coerce')
             elif file == "sales_details":
-                # Ensure sls_cust_id is treated as integer
-                pdf['sls_cust_id'] = pdf['sls_cust_id'].astype(int)
+                # Ensure numeric fields are integers
+                pdf['sls_cust_id'] = pd.to_numeric(pdf['sls_cust_id'], errors='coerce')
+                pdf['sls_order_dt'] = pd.to_numeric(pdf['sls_order_dt'], errors='coerce')
+                pdf['sls_ship_dt'] = pd.to_numeric(pdf['sls_ship_dt'], errors='coerce')
+                pdf['sls_due_dt'] = pd.to_numeric(pdf['sls_due_dt'], errors='coerce')
+                pdf['sls_sales'] = pd.to_numeric(pdf['sls_sales'], errors='coerce')
+                pdf['sls_quantity'] = pd.to_numeric(pdf['sls_quantity'], errors='coerce')
+                pdf['sls_price'] = pd.to_numeric(pdf['sls_price'], errors='coerce')
             elif file == "CUST_AZ12":
-                # Convert BDATE to datetime if it exists
-                if 'BDATE' in pdf.columns:
-                    pdf['BDATE'] = pd.to_datetime(pdf['BDATE'], errors='coerce')
+                # Standardize column names to lowercase
+                pdf.columns = [col.lower() for col in pdf.columns]
+                # Convert bdate to datetime
+                if 'bdate' in pdf.columns:
+                    pdf['bdate'] = pd.to_datetime(pdf['bdate'], errors='coerce')
+            elif file == "LOC_A101" or file == "PX_CAT_G1V2":
+                # Standardize column names to lowercase
+                pdf.columns = [col.lower() for col in pdf.columns]
             
             # Convert to Spark DataFrame with schema if defined, otherwise infer
             if file in schemas:

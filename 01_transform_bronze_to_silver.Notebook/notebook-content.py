@@ -143,8 +143,8 @@ silver_crm_prd = df \
                .when(upper(trim(col("prd_line"))) == "T", "Touring")
                .otherwise("n/a")) \
     .withColumn("prd_cost", coalesce(col("prd_cost"), lit(0))) \
-    .withColumn("prd_start_dt", to_date(col("prd_start_dt"))) \
-    .withColumn("prd_end_dt", to_date(col("prd_end_dt"))) \
+    .withColumn("prd_start_dt", col("prd_start_dt")) \
+    .withColumn("prd_end_dt", col("prd_end_dt")) \
     .withColumn("dwh_create_date", current_date())
 
 # Write to silver table
@@ -167,13 +167,13 @@ df = check_table_quality({"name": "bronze.crm_sales_details", "key": "sls_ord_nu
 # Apply transformations
 silver_crm_sales = df \
     .withColumn("sls_order_dt", 
-               when((col("sls_order_dt") == 0) | (length(col("sls_order_dt")) != 8), None)
+               when((col("sls_order_dt").isNull()) | (col("sls_order_dt") == 0) | (length(col("sls_order_dt").cast("string")) != 8), None)
                .otherwise(to_date(col("sls_order_dt").cast("string"), "yyyyMMdd"))) \
     .withColumn("sls_ship_dt", 
-               when((col("sls_ship_dt") == 0) | (length(col("sls_ship_dt")) != 8), None)
+               when((col("sls_ship_dt").isNull()) | (col("sls_ship_dt") == 0) | (length(col("sls_ship_dt").cast("string")) != 8), None)
                .otherwise(to_date(col("sls_ship_dt").cast("string"), "yyyyMMdd"))) \
     .withColumn("sls_due_dt", 
-               when((col("sls_due_dt") == 0) | (length(col("sls_due_dt")) != 8), None)
+               when((col("sls_due_dt").isNull()) | (col("sls_due_dt") == 0) | (length(col("sls_due_dt").cast("string")) != 8), None)
                .otherwise(to_date(col("sls_due_dt").cast("string"), "yyyyMMdd"))) \
     .withColumn("sls_sales_calc", col("sls_quantity") * abs(col("sls_price"))) \
     .withColumn("sls_sales", 
