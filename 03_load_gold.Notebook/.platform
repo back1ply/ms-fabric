@@ -1,12 +1,12 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
   "metadata": {
-    "type": "Lakehouse",
-    "displayName": "LH",
-    "description": "Lakehouse"
+    "type": "Notebook",
+    "displayName": "03_load_gold",
+    "description": "Load silver tables to gold"
   },
   "config": {
     "version": "2.0",
-    "logicalId": "98762e86-e5b2-af4c-46f0-dbfebc5c5ff7"
+    "logicalId": "716a4df2-c375-b49f-42a2-3c36c228a88b"
   }
 }

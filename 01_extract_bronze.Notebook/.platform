@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "01_extract_bronze",
+    "description": "Load raw data from github to csv files in the lakehouse"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "083b9b2f-cde3-9f59-4059-554a65dd4bf1"
+  }
+}
