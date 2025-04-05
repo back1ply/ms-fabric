@@ -128,7 +128,7 @@ def transform_dim_product():
             col("c.maintenance").alias("maintenance")
         )
 
-    return df.withColumn("product_key_sk", row_number().over(Window.orderBy("product_id"))).over(Window.orderBy("p.prd_start_dt", "p.prd_key")))
+    return df.withColumn("product_key_sk", row_number().over(Window.orderBy("product_id", "product_key")))
 
 
 # METADATA ********************
@@ -146,12 +146,13 @@ def transform_fct_sales():
     prod = spark.table("gold.dim_product")
 
     df = sales.alias("s")\
-        .join(cust.alias("c"), col("s.cst_id") == col("c.customer_id"), "left")\
-        .join(prod.alias("p"), col("s.prd_id") == col("p.product_id"), "left")\
+        .join(cust.alias("c"), col("s.sls_cust_id") == col("c.customer_id"), "left")\
+        .join(prod.alias("p"), col("s.sls_prd_key") == col("p.product_key"), "left")\
         .select(
-            col("s.sls_id").alias("sales_id"),
-            col("p.product_key"),
+            col("s.sls_ord_num").alias("order_number"),
+            col("p.product_key_sk").alias("product_key"),
             col("p.product_name"),
+            col("c.customer_key"),
             col("c.first_name"),
             col("c.last_name"),
             col("c.country"),
@@ -160,11 +161,11 @@ def transform_fct_sales():
             col("s.sls_price").cast("float").alias("price"),
             col("s.sls_sales").cast("float").alias("sales_amount"),
             col("s.sls_due_dt").alias("due_date"),
-            col("s.sls_ship_dt").alias("shipping_date"),
-            col("s.sls_order_num").alias("order_number")
+            col("s.sls_ship_dt").alias("shipping_date")
         )
 
     return df
+
 
 # METADATA ********************
 

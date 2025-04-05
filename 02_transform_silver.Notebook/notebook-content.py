@@ -25,6 +25,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import StringType
+from pyspark.sql.window import Window
 
 # METADATA ********************
 
@@ -115,9 +116,18 @@ drop_silver_tables()
 def transform_crm_cust_info():
     df = spark.table("bronze.crm_cust_info")
     df = trim_all_string_columns(df)
-    return add_metadata(df.where("cst_id IS NOT NULL")
+
+    w = Window.partitionBy("cst_id").orderBy(col("cst_create_date").desc())
+
+    return add_metadata(
+        df
+        .filter(col("cst_id").isNotNull())
+        .withColumn("rn", row_number().over(w))
+        .filter(col("rn") == 1)
+        .drop("rn")
         .withColumn("cst_gndr", normalize_gender("cst_gndr"))
-        .withColumn("cst_marital_status", normalize_marital_status("cst_marital_status")))
+        .withColumn("cst_marital_status", normalize_marital_status("cst_marital_status"))
+    )
 
 # METADATA ********************
 
@@ -131,10 +141,19 @@ def transform_crm_cust_info():
 def transform_crm_prd_info():
     df = spark.table("bronze.crm_prd_info")
     df = trim_all_string_columns(df)
+
+    w = Window.partitionBy("prd_key").orderBy("prd_start_dt")
+
     return add_metadata(df
         .withColumn("cat_id", regexp_replace(substring(col("prd_key"), 1, 5), "-", "_"))
         .withColumn("prd_key", expr("substring(prd_key, 7)"))
-        .withColumn("prd_line", map_product_line("prd_line")))
+        .withColumn("prd_line", map_product_line("prd_line"))
+        .withColumn("prd_start_dt", col("prd_start_dt").cast("date"))
+        .withColumn(
+            "prd_end_dt",
+            (lead("prd_start_dt").over(w) - expr("INTERVAL 1 day")).cast("date")
+        )
+    )
 
 # METADATA ********************
 
@@ -147,10 +166,21 @@ def transform_crm_prd_info():
 
 def transform_crm_sales_details():
     df = spark.table("bronze.crm_sales_details")
-    return add_metadata(df
-        .withColumn("sls_sales_calc", col("sls_quantity") * col("sls_price"))
-        .withColumn("sls_sales", when(col("sls_sales").isNull() | (col("sls_sales") <= 0), col("sls_sales_calc")).otherwise(col("sls_sales")))
-        .drop("sls_sales_calc"))
+
+    return add_metadata(
+        df
+        .withColumn("sls_quantity", col("sls_quantity").cast("double"))
+        .withColumn("sls_price", col("sls_price").cast("double"))
+        .withColumn("sls_sales", when(
+            col("sls_sales").isNull() | (col("sls_sales") <= 0) |
+            (col("sls_quantity") * abs(col("sls_price")) != col("sls_sales")),
+            col("sls_quantity") * abs(col("sls_price"))
+        ).otherwise(col("sls_sales")))
+        .withColumn("sls_price", when(
+            col("sls_price").isNull() | (col("sls_price") <= 0),
+            col("sls_sales") / when(col("sls_quantity") == 0, None).otherwise(col("sls_quantity"))
+        ).otherwise(col("sls_price")))
+    )
 
 # METADATA ********************
 
@@ -164,9 +194,16 @@ def transform_crm_sales_details():
 def transform_erp_cust_az12():
     df = spark.table("bronze.erp_cust_az12")
     df = trim_all_string_columns(df)
-    return add_metadata(df
+
+    return add_metadata(
+        df
         .withColumn("cid", when(col("cid").startswith("NAS"), substring(col("cid"), 4, 100)).otherwise(col("cid")))
-        .withColumn("gen", normalize_gender("gen")))
+        .withColumn("bdate", when(
+            (col("bdate") > current_date()) | (col("bdate") < lit("1924-01-01").cast("date")),
+            None
+        ).otherwise(col("bdate")))
+        .withColumn("gen", normalize_gender("gen"))
+    )
 
 # METADATA ********************
 
