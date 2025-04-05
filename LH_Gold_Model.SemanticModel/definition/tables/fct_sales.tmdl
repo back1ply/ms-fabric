@@ -1,0 +1,153 @@
+table fct_sales
+	lineageTag: 259332e2-c58c-4a84-bd68-238929fc6471
+	sourceLineageTag: [gold].[fct_sales]
+
+	column order_number
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: b672d3d7-ff22-4280-90df-392352fa3c25
+		sourceLineageTag: order_number
+		summarizeBy: none
+		sourceColumn: order_number
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_key
+		dataType: int64
+		formatString: 0
+		sourceProviderType: int
+		lineageTag: a25bdbec-8606-4680-bc0d-f1956accbab7
+		sourceLineageTag: product_key
+		summarizeBy: none
+		sourceColumn: product_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_name
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 692c38bb-d7c4-4c00-8b1a-71b92b92ca46
+		sourceLineageTag: product_name
+		summarizeBy: none
+		sourceColumn: product_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_key
+		dataType: int64
+		formatString: 0
+		sourceProviderType: int
+		lineageTag: 5c06bbd3-60a3-42be-a7ea-e007e287598d
+		sourceLineageTag: customer_key
+		summarizeBy: none
+		sourceColumn: customer_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column first_name
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 2f4a356d-47bb-4172-bfd2-a01c7a81bbae
+		sourceLineageTag: first_name
+		summarizeBy: none
+		sourceColumn: first_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column last_name
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 0269f782-7bf0-4c73-b8c9-e694f025e8eb
+		sourceLineageTag: last_name
+		summarizeBy: none
+		sourceColumn: last_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column country
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: ac82eece-d30f-46bb-b128-7c271e2dd656
+		sourceLineageTag: country
+		summarizeBy: none
+		sourceColumn: country
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_date
+		dataType: int64
+		formatString: 0
+		sourceProviderType: bigint
+		lineageTag: 84369598-f176-4081-b327-a74d8cf74142
+		sourceLineageTag: order_date
+		summarizeBy: sum
+		sourceColumn: order_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column quantity
+		dataType: int64
+		formatString: 0
+		sourceProviderType: int
+		lineageTag: 09020fd8-81c7-4122-bdde-ad9c169bc060
+		sourceLineageTag: quantity
+		summarizeBy: sum
+		sourceColumn: quantity
+
+		annotation SummarizationSetBy = Automatic
+
+	column price
+		dataType: double
+		sourceProviderType: real
+		lineageTag: 3bba729e-4a2f-4cc9-a289-273180fd4a75
+		sourceLineageTag: price
+		summarizeBy: sum
+		sourceColumn: price
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column sales_amount
+		dataType: double
+		sourceProviderType: real
+		lineageTag: b5240ac2-4b36-4eb7-970a-b471d4f13e28
+		sourceLineageTag: sales_amount
+		summarizeBy: sum
+		sourceColumn: sales_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column due_date
+		dataType: int64
+		formatString: 0
+		sourceProviderType: bigint
+		lineageTag: cbf10897-ed97-4538-bf6a-811224d761c2
+		sourceLineageTag: due_date
+		summarizeBy: sum
+		sourceColumn: due_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column shipping_date
+		dataType: int64
+		formatString: 0
+		sourceProviderType: bigint
+		lineageTag: 4a7dccb4-7dde-4adf-a931-798fa7239abc
+		sourceLineageTag: shipping_date
+		summarizeBy: sum
+		sourceColumn: shipping_date
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fct_sales = entity
+		mode: directLake
+		source
+			entityName: fct_sales
+			schemaName: gold
+			expressionSource: DatabaseQuery
+
+	annotation PBI_ResultType = Table
+

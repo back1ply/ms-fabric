@@ -1,0 +1,117 @@
+table dim_product
+	lineageTag: f6ca8498-6f6e-411f-ac1a-585dc29deab4
+	sourceLineageTag: [gold].[dim_product]
+
+	column product_id
+		dataType: int64
+		formatString: 0
+		sourceProviderType: bigint
+		lineageTag: d9e36ee7-3ed7-4247-ae61-3d7ec54a2699
+		sourceLineageTag: product_id
+		summarizeBy: none
+		sourceColumn: product_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_key
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 92108a04-9da0-4475-82e7-4f1f0922a376
+		sourceLineageTag: product_key
+		summarizeBy: none
+		sourceColumn: product_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_name
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 46582bed-66df-49aa-9848-8c3c9b73973c
+		sourceLineageTag: product_name
+		summarizeBy: none
+		sourceColumn: product_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_line
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: a5a44236-5866-40fb-9b54-dd67fefc9fd3
+		sourceLineageTag: product_line
+		summarizeBy: none
+		sourceColumn: product_line
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_cost
+		dataType: double
+		sourceProviderType: float
+		lineageTag: b35f3f9b-1a80-4151-8b9b-e21ef28c677d
+		sourceLineageTag: product_cost
+		summarizeBy: none
+		sourceColumn: product_cost
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column category_id
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 7ae993e6-12bf-4f4e-8d5a-a819f6da5ccb
+		sourceLineageTag: category_id
+		summarizeBy: none
+		sourceColumn: category_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column category
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 9937494b-b558-4243-a0e7-9517a64fed9c
+		sourceLineageTag: category
+		summarizeBy: none
+		sourceColumn: category
+
+		annotation SummarizationSetBy = Automatic
+
+	column subcategory
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 97308ba8-9229-4c5a-93ee-5bce450c3b06
+		sourceLineageTag: subcategory
+		summarizeBy: none
+		sourceColumn: subcategory
+
+		annotation SummarizationSetBy = Automatic
+
+	column maintenance
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 9884411b-6a39-4f67-8c5b-36e8e4128489
+		sourceLineageTag: maintenance
+		summarizeBy: none
+		sourceColumn: maintenance
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_key_sk
+		dataType: int64
+		formatString: 0
+		sourceProviderType: int
+		lineageTag: 87f9ef58-56b7-40ba-ba2f-da674d16c627
+		sourceLineageTag: product_key_sk
+		summarizeBy: none
+		sourceColumn: product_key_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_product = entity
+		mode: directLake
+		source
+			entityName: dim_product
+			schemaName: gold
+			expressionSource: DatabaseQuery
+
+	annotation PBI_ResultType = Table
+

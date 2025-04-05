@@ -1,0 +1,107 @@
+table dim_customer
+	lineageTag: 32d66ad0-80c9-4421-a479-5ef318aa62de
+	sourceLineageTag: [gold].[dim_customer]
+
+	column customer_id
+		dataType: double
+		sourceProviderType: float
+		lineageTag: 81373cde-395f-40bc-8b03-f3ddcaeece87
+		sourceLineageTag: customer_id
+		summarizeBy: sum
+		sourceColumn: customer_id
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column customer_key
+		dataType: int64
+		formatString: 0
+		sourceProviderType: int
+		lineageTag: 5113696d-ab04-4591-90c4-7cd5709ca9b7
+		sourceLineageTag: customer_key
+		summarizeBy: none
+		sourceColumn: customer_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column first_name
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: a50b3dbc-8c41-48ab-b481-de5483c74a47
+		sourceLineageTag: first_name
+		summarizeBy: none
+		sourceColumn: first_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column last_name
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 82dedcaa-6318-41ad-946a-7a904ef6a7ec
+		sourceLineageTag: last_name
+		summarizeBy: none
+		sourceColumn: last_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column gender
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 76199c2e-b12c-45fa-b0f5-88c024f06510
+		sourceLineageTag: gender
+		summarizeBy: none
+		sourceColumn: gender
+
+		annotation SummarizationSetBy = Automatic
+
+	column marital_status
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 5d9afd1d-b585-4431-940c-7793178110cf
+		sourceLineageTag: marital_status
+		summarizeBy: none
+		sourceColumn: marital_status
+
+		annotation SummarizationSetBy = Automatic
+
+	column birth_date
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: eae7c92b-05df-4691-9724-2afe84812396
+		sourceLineageTag: birth_date
+		summarizeBy: none
+		sourceColumn: birth_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column country
+		dataType: string
+		sourceProviderType: varchar(8000)
+		lineageTag: 1d0fd668-4553-4e0f-bee1-41e79a3dbf61
+		sourceLineageTag: country
+		summarizeBy: none
+		sourceColumn: country
+
+		annotation SummarizationSetBy = Automatic
+
+	column create_date
+		dataType: dateTime
+		formatString: General Date
+		sourceProviderType: date
+		lineageTag: cf8b06e4-9f54-48cc-b485-bb1bbbe4325f
+		sourceLineageTag: create_date
+		summarizeBy: none
+		sourceColumn: create_date
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_customer = entity
+		mode: directLake
+		source
+			entityName: dim_customer
+			schemaName: gold
+			expressionSource: DatabaseQuery
+
+	annotation PBI_ResultType = Table
+

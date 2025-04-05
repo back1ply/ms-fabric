@@ -1,0 +1,8 @@
+relationship f5d74c41-9add-50de-5fa3-9fab7b7a210f
+	fromColumn: dim_customer.customer_key
+	toColumn: fct_sales.customer_key
+
+relationship d04ffbf9-175e-03fb-ecb0-612da7a1515f
+	fromColumn: fct_sales.product_key
+	toColumn: dim_product.product_key_sk
+
