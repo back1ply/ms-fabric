@@ -3,7 +3,7 @@
   "metadata": {
     "type": "Notebook",
     "displayName": "03_load_gold",
-    "description": "Load silver tables to gold"
+    "description": "Load silver tables to gold tables, ready for reporting."
   },
   "config": {
     "version": "2.0",

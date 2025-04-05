@@ -3,7 +3,7 @@
   "metadata": {
     "type": "Notebook",
     "displayName": "02_transform_silver",
-    "description": "Transform bronze tables to silver"
+    "description": "Clean and transform bronze tables then load to silver tables."
   },
   "config": {
     "version": "2.0",

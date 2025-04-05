@@ -3,7 +3,7 @@
   "metadata": {
     "type": "Notebook",
     "displayName": "01_extract_bronze",
-    "description": "Load raw data from github to csv files in the lakehouse"
+    "description": "Load raw data from GitHub csv to bronze tables in the lakehouse."
   },
   "config": {
     "version": "2.0",
