@@ -22,11 +22,12 @@
 
 # CELL ********************
 
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import *
+from pyspark.sql.types import *
 import pandas as pd
 import requests
 from io import StringIO
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import *
 
 # METADATA ********************
 
@@ -86,18 +87,30 @@ def process_file(system, file_name):
     print(f"\n➡️ Loading {table_name}")
 
     try:
-        # Download from GitHub
         response = requests.get(url)
         response.raise_for_status()
-
-        # Load into Pandas and clean column names
         pdf = pd.read_csv(StringIO(response.text))
         pdf.columns = [c.lower() for c in pdf.columns]
 
-        # Convert to Spark DataFrame with inferred schema
+        # Fix data inconsistencies before applying schema
+        if file_name.lower() == "cust_info":
+            pdf["cst_id"] = pdf["cst_id"].fillna(0).astype(int)
+            pdf["cst_create_date"] = pd.to_datetime(pdf["cst_create_date"], errors="coerce")
+        elif file_name.lower() == "prd_info":
+            pdf["prd_id"] = pdf["prd_id"].fillna(0).astype(int)
+            pdf["prd_cost"] = pd.to_numeric(pdf["prd_cost"], errors="coerce")
+            pdf["prd_start_dt"] = pd.to_datetime(pdf["prd_start_dt"], errors="coerce")
+            pdf["prd_end_dt"] = pd.to_datetime(pdf["prd_end_dt"], errors="coerce")
+        elif file_name.lower() == "sales_details":
+            date_cols = ["sls_order_dt", "sls_ship_dt", "sls_due_dt"]
+            for col_ in date_cols:
+                pdf[col_] = pd.to_datetime(pdf[col_].astype(str), format="%Y%m%d", errors="coerce")
+            pdf["sls_quantity"] = pd.to_numeric(pdf["sls_quantity"], errors="coerce").fillna(0).astype(int)
+        elif file_name.lower() == "cust_az12":
+            pdf["bdate"] = pd.to_datetime(pdf["bdate"], errors="coerce")
+        
         sdf = spark.createDataFrame(pdf)
 
-        # Drop and overwrite
         drop_table_if_exists(table_name)
         sdf.write \
             .format("delta") \
@@ -113,6 +126,7 @@ def process_file(system, file_name):
     except Exception as e:
         print(f"❌ Failed to load {table_name}: {e}")
         return 0
+
 
 # METADATA ********************
 

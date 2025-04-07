@@ -61,11 +61,14 @@ def drop_gold_tables():
 
 def save_gold_table(df_func, table_name):
     df = df_func()
-    df.write.format("delta").mode("overwrite").saveAsTable(table_name)
+    df = df.select([col(c).alias(c) for c in dict(df.dtypes)])  # Force unique field types
+    df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(table_name)
     print(f"✅ Loaded {table_name} with {df.count()} rows")
 
 # Drop previous gold tables
+
 drop_gold_tables()
+
 
 # METADATA ********************
 
@@ -85,8 +88,8 @@ def transform_dim_customer():
         .join(az.alias("ca"), col("ci.cst_key") == col("ca.cid"), "left")\
         .join(loc.alias("la"), col("ci.cst_key") == col("la.cid"), "left")\
         .select(
-            col("ci.cst_id").alias("customer_id"),
-            col("ci.cst_key").alias("customer_key"),
+            col("ci.cst_id").cast("int").alias("customer_id"),
+            col("ci.cst_key").alias("customer_number"),
             col("ci.cst_firstname").alias("first_name"),
             col("ci.cst_lastname").alias("last_name"),
             when(col("ci.cst_gndr") != "n/a", col("ci.cst_gndr")).otherwise(col("ca.gen")).alias("gender"),
@@ -98,15 +101,6 @@ def transform_dim_customer():
 
     return df.withColumn("customer_key", row_number().over(Window.orderBy("customer_id")))
 
-# METADATA ********************
-
-# META {
-# META   "language": "python",
-# META   "language_group": "synapse_pyspark"
-# META }
-
-# CELL ********************
-
 def transform_dim_product():
     prod = spark.table("silver.crm_prd_info")
     cat = spark.table("silver.erp_px_cat_g1v2")
@@ -115,28 +109,18 @@ def transform_dim_product():
         .join(cat.alias("c"), col("p.cat_id") == col("c.id"), "left")\
         .where(col("p.prd_end_dt").isNull())\
         .select(
-            col("p.prd_id").alias("product_id"),
-            col("p.prd_key").alias("product_key"),
+            col("p.prd_id").cast("int").alias("product_id"),
+            col("p.prd_key").alias("product_number"),
             col("p.prd_nm").alias("product_name"),
             col("p.prd_line").alias("product_line"),
-            col("p.prd_cost").alias("product_cost"),
+            col("p.prd_cost").cast("float").alias("product_cost"),
             col("p.cat_id").alias("category_id"),
             col("c.cat").alias("category"),
             col("c.subcat").alias("subcategory"),
             col("c.maintenance").alias("maintenance")
         )
 
-    return df.withColumn("product_key_sk", row_number().over(Window.orderBy("product_id", "product_key")))
-
-
-# METADATA ********************
-
-# META {
-# META   "language": "python",
-# META   "language_group": "synapse_pyspark"
-# META }
-
-# CELL ********************
+    return df.withColumn("product_key", row_number().over(Window.orderBy("product_id", "product_number")))
 
 def transform_fct_sales():
     sales = spark.table("silver.crm_sales_details")
@@ -145,10 +129,10 @@ def transform_fct_sales():
 
     df = sales.alias("s")\
         .join(cust.alias("c"), col("s.sls_cust_id") == col("c.customer_id"), "left")\
-        .join(prod.alias("p"), col("s.sls_prd_key") == col("p.product_key"), "left")\
+        .join(prod.alias("p"), col("s.sls_prd_key") == col("p.product_number"), "left")\
         .select(
             col("s.sls_ord_num").alias("order_number"),
-            col("p.product_key_sk").alias("product_key"),
+            col("p.product_key").alias("product_key"),
             col("p.product_name"),
             col("c.customer_key"),
             col("c.first_name"),
@@ -163,7 +147,6 @@ def transform_fct_sales():
         )
 
     return df
-
 
 # METADATA ********************
 
