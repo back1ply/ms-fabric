@@ -79,6 +79,23 @@ def drop_table_if_exists(table_name):
 
 # CELL ********************
 
+def clean_dataframe(df):
+    null_likes = {"", "n/a", "N/A", "NaN", "nan", "None", "null", "NULL"}
+
+    for col in df.columns:
+        df[col] = df[col].map(lambda x: None if pd.isna(x) or str(x).strip() in null_likes else str(x).strip())
+
+    return df
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
 def process_file(system, file_name):
     base_url = "https://raw.githubusercontent.com/DataWithBaraa/sql-data-warehouse-project/refs/heads/main/datasets"
     url = f"{base_url}/source_{system.lower()}/{file_name}.csv"
@@ -92,36 +109,52 @@ def process_file(system, file_name):
         pdf = pd.read_csv(StringIO(response.text))
         pdf.columns = [c.lower() for c in pdf.columns]
 
-        # Fix data inconsistencies before applying schema
+        # Clean and sanitize
+        pdf = clean_dataframe(pdf)
+
+        # Type handling before Spark
         if file_name.lower() == "cust_info":
-            pdf["cst_id"] = pdf["cst_id"].fillna(0).astype(int)
+            pdf["cst_id"] = pd.to_numeric(pdf["cst_id"], errors="coerce").fillna(0).astype(int)
             pdf["cst_create_date"] = pd.to_datetime(pdf["cst_create_date"], errors="coerce")
+
         elif file_name.lower() == "prd_info":
-            pdf["prd_id"] = pdf["prd_id"].fillna(0).astype(int)
+            pdf["prd_id"] = pd.to_numeric(pdf["prd_id"], errors="coerce").fillna(0).astype(int)
             pdf["prd_cost"] = pd.to_numeric(pdf["prd_cost"], errors="coerce")
             pdf["prd_start_dt"] = pd.to_datetime(pdf["prd_start_dt"], errors="coerce")
             pdf["prd_end_dt"] = pd.to_datetime(pdf["prd_end_dt"], errors="coerce")
+
         elif file_name.lower() == "sales_details":
-            date_cols = ["sls_order_dt", "sls_ship_dt", "sls_due_dt"]
-            for col_ in date_cols:
+            for col_ in ["sls_order_dt", "sls_ship_dt", "sls_due_dt"]:
                 pdf[col_] = pd.to_datetime(pdf[col_].astype(str), format="%Y%m%d", errors="coerce")
             pdf["sls_quantity"] = pd.to_numeric(pdf["sls_quantity"], errors="coerce").fillna(0).astype(int)
+
         elif file_name.lower() == "cust_az12":
             pdf["bdate"] = pd.to_datetime(pdf["bdate"], errors="coerce")
-        
+
         sdf = spark.createDataFrame(pdf)
 
-        drop_table_if_exists(table_name)
-        sdf.write \
-            .format("delta") \
-            .mode("overwrite") \
-            .option("overwriteSchema", "true") \
-            .option("mergeSchema", "true") \
-            .saveAsTable(table_name)
+        # Date casting
+        if file_name.lower() == "cust_info":
+            sdf = sdf.withColumn("cst_create_date", col("cst_create_date").cast("date"))
 
-        count = sdf.count()
-        print(f"✅ Loaded {count} rows into {table_name}")
-        return count
+        elif file_name.lower() == "prd_info":
+            sdf = sdf.withColumn("prd_start_dt", col("prd_start_dt").cast("date"))
+            sdf = sdf.withColumn("prd_end_dt", col("prd_end_dt").cast("date"))
+
+        elif file_name.lower() == "sales_details":
+            sdf = sdf.withColumn("sls_order_dt", col("sls_order_dt").cast("date"))
+            sdf = sdf.withColumn("sls_ship_dt", col("sls_ship_dt").cast("date"))
+            sdf = sdf.withColumn("sls_due_dt", col("sls_due_dt").cast("date"))
+
+        elif file_name.lower() == "cust_az12":
+            sdf = sdf.withColumn("bdate", col("bdate").cast("date"))
+
+        # Drop and write to Delta
+        drop_table_if_exists(table_name)
+        sdf.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(table_name)
+
+        print(f"✅ Loaded {sdf.count()} rows into {table_name}")
+        return sdf.count()
 
     except Exception as e:
         print(f"❌ Failed to load {table_name}: {e}")
