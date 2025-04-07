@@ -23,7 +23,7 @@
 # CELL ********************
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, trim, upper, countDistinct, expr
+from pyspark.sql.functions import *
 
 # METADATA ********************
 
@@ -59,11 +59,8 @@ def check_and_report(description, df):
 
 # CELL ********************
 
-# SILVER LAYER CHECKS
-
-# Null or duplicate primary keys (cust, product, sales)
 check_and_report(
-    "Duplicate or NULL cst_id in silver.crm_cust_info",
+    "Duplicate or NULL customer_id in silver.crm_cust_info",
     spark.sql("""
         SELECT cst_id, COUNT(*) as count
         FROM silver.crm_cust_info
@@ -73,7 +70,7 @@ check_and_report(
 )
 
 check_and_report(
-    "Duplicate or NULL prd_id in silver.crm_prd_info",
+    "Duplicate or NULL product_id in silver.crm_prd_info",
     spark.sql("""
         SELECT prd_id, COUNT(*) as count
         FROM silver.crm_prd_info
@@ -82,25 +79,21 @@ check_and_report(
     """)
 )
 
-# Trim check
 check_and_report(
-    "Unwanted spaces in prd_nm",
+    "Unwanted spaces in product name",
     spark.table("silver.crm_prd_info").filter(col("prd_nm") != trim(col("prd_nm")))
 )
 
-# Invalid product cost
 check_and_report(
     "Negative or NULL product cost",
     spark.table("silver.crm_prd_info").filter((col("prd_cost") < 0) | col("prd_cost").isNull())
 )
 
-# Invalid date logic
 check_and_report(
     "Product start date after end date",
     spark.table("silver.crm_prd_info").filter(col("prd_end_dt") < col("prd_start_dt"))
 )
 
-# Invalid sales logic
 check_and_report(
     "Sales amount inconsistent with price × quantity",
     spark.sql("""
@@ -116,11 +109,11 @@ check_and_report(
     """)
 )
 
-# Future birthdates
 check_and_report(
     "Future or invalid birthdates in silver.erp_cust_az12",
-    spark.table("silver.erp_cust_az12").filter(col("bdate") > expr("current_date()"))
+    spark.table("silver.erp_cust_az12").filter(col("bdate") > current_date())
 )
+
 
 # METADATA ********************
 
@@ -131,9 +124,6 @@ check_and_report(
 
 # CELL ********************
 
-# GOLD LAYER CHECKS
-
-# Duplicates in surrogate keys
 check_and_report(
     "Duplicate customer_key in gold.dim_customer",
     spark.sql("""
@@ -147,12 +137,24 @@ check_and_report(
 check_and_report(
     "Duplicate product_key in gold.dim_product",
     spark.sql("""
-        SELECT product_key_sk, COUNT(*) as count
+        SELECT product_key, COUNT(*) as count
         FROM gold.dim_product
-        GROUP BY product_key_sk
+        GROUP BY product_key
         HAVING COUNT(*) > 1
     """)
 )
+
+check_and_report(
+    "Missing dimension matches in gold.fct_sales",
+    spark.sql("""
+        SELECT f.*
+        FROM gold.fct_sales f
+        LEFT JOIN gold.dim_customer c ON f.customer_key = c.customer_key
+        LEFT JOIN gold.dim_product p ON f.product_key = p.product_key
+        WHERE c.customer_key IS NULL OR p.product_key IS NULL
+    """)
+)
+
 
 # METADATA ********************
 
@@ -163,17 +165,7 @@ check_and_report(
 
 # CELL ********************
 
-# Referential integrity from fact to dims
-check_and_report(
-    "Missing dimension matches in gold.fct_sales",
-    spark.sql("""
-        SELECT f.*
-        FROM gold.fct_sales f
-        LEFT JOIN gold.dim_customer c ON f.customer_key = c.customer_key
-        LEFT JOIN gold.dim_product p ON f.product_key = p.product_key_sk
-        WHERE c.customer_key IS NULL OR p.product_key_sk IS NULL
-    """)
-)
+print("✅ All Quality Checks Completed")
 
 # METADATA ********************
 
