@@ -50,28 +50,25 @@ spark = SparkSession.builder.getOrCreate()
 def normalize_gender(col_):
     return when(upper(col(col_)).isin("F", "FEMALE"), "Female") \
            .when(upper(col(col_)).isin("M", "MALE"), "Male") \
-           .otherwise("n/a")
+           .otherwise(lit(None))
 
 def normalize_marital_status(col_):
     return when(upper(col(col_)) == "S", "Single") \
            .when(upper(col(col_)) == "M", "Married") \
-           .otherwise("n/a")
+           .otherwise(lit(None))
 
 def map_product_line(col_):
     return when(upper(col(col_)) == "M", "Mountain") \
            .when(upper(col(col_)) == "R", "Road") \
            .when(upper(col(col_)) == "S", "Other Sales") \
            .when(upper(col(col_)) == "T", "Touring") \
-           .otherwise("n/a")
+           .otherwise(lit(None))
 
 def normalize_country(col_):
-    return when(col(col_).isNull() | (col(col_) == "") | (upper(col(col_)) == "NAN"), "n/a") \
+    return when(col(col_).isNull() | (col(col_) == "") | (upper(col(col_)) == "NAN"), lit(None)) \
            .when(upper(col(col_)) == "DE", "Germany") \
            .when(upper(col(col_)).isin("US", "USA"), "United States") \
            .otherwise(initcap(col(col_)))
-
-def add_metadata(df):
-    return df.withColumn("dwh_create_date", current_date())
 
 # METADATA ********************
 
@@ -85,7 +82,7 @@ def add_metadata(df):
 def transform_crm_cust_info():
     df = spark.table("bronze.crm_cust_info")
     w = Window.partitionBy("cst_id").orderBy(col("cst_create_date").desc())
-    return add_metadata(
+    return (
         df.filter(col("cst_id").isNotNull())
           .withColumn("rn", row_number().over(w))
           .filter(col("rn") == 1)
@@ -97,7 +94,7 @@ def transform_crm_cust_info():
 def transform_crm_prd_info():
     df = spark.table("bronze.crm_prd_info")
     w = Window.partitionBy("prd_key").orderBy("prd_start_dt")
-    return add_metadata(
+    return (
         df.withColumn("cat_id", regexp_replace(substring(col("prd_key"), 1, 5), "-", "_"))
           .withColumn("prd_key", expr("substring(prd_key, 7)"))
           .withColumn("prd_line", map_product_line("prd_line"))
@@ -106,21 +103,11 @@ def transform_crm_prd_info():
 
 def transform_crm_sales_details():
     df = spark.table("bronze.crm_sales_details")
-    return add_metadata(
-        df.withColumn("sls_sales", when(
-            col("sls_sales").isNull() | (col("sls_sales") <= 0) |
-            (col("sls_quantity") * abs(col("sls_price")) != col("sls_sales")),
-            col("sls_quantity") * abs(col("sls_price"))
-        ).otherwise(col("sls_sales")))
-        .withColumn("sls_price", when(
-            col("sls_price").isNull() | (col("sls_price") <= 0),
-            col("sls_sales") / when(col("sls_quantity") == 0, None).otherwise(col("sls_quantity"))
-        ).otherwise(col("sls_price")))
-    )
+    return df  # No recalculation needed; values are already typed
 
 def transform_erp_cust_az12():
     df = spark.table("bronze.erp_cust_az12")
-    return add_metadata(
+    return (
         df.withColumn("cid", when(col("cid").startswith("NAS"), substring(col("cid"), 4, 100)).otherwise(col("cid")))
           .withColumn("bdate", when((col("bdate") > current_date()) | (col("bdate") < lit("1924-01-01").cast("date")), None).otherwise(col("bdate")))
           .withColumn("gen", normalize_gender("gen"))
@@ -128,14 +115,14 @@ def transform_erp_cust_az12():
 
 def transform_erp_loc_a101():
     df = spark.table("bronze.erp_loc_a101")
-    return add_metadata(
+    return (
         df.withColumn("cid", regexp_replace(col("cid"), "-", ""))
           .withColumn("cntry", normalize_country("cntry"))
     )
 
 def transform_erp_px_cat_g1v2():
-    df = spark.table("bronze.erp_px_cat_g1v2")
-    return add_metadata(df)
+    return spark.table("bronze.erp_px_cat_g1v2")
+
 
 # METADATA ********************
 

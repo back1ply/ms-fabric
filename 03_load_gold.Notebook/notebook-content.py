@@ -61,14 +61,9 @@ def drop_gold_tables():
 
 def save_gold_table(df_func, table_name):
     df = df_func()
-    df = df.select([col(c).alias(c) for c in dict(df.dtypes)])  # Force unique field types
+    df = df.select([col(c).alias(c) for c in dict(df.dtypes)])  # Ensure stable schema
     df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(table_name)
     print(f"✅ Loaded {table_name} with {df.count()} rows")
-
-# Drop previous gold tables
-
-drop_gold_tables()
-
 
 # METADATA ********************
 
@@ -92,11 +87,10 @@ def transform_dim_customer():
             col("ci.cst_key").alias("customer_number"),
             col("ci.cst_firstname").alias("first_name"),
             col("ci.cst_lastname").alias("last_name"),
-            when(col("ci.cst_gndr") != "n/a", col("ci.cst_gndr")).otherwise(col("ca.gen")).alias("gender"),
+            when(col("ci.cst_gndr").isNotNull(), col("ci.cst_gndr")).otherwise(col("ca.gen")).alias("gender"),
             col("ci.cst_marital_status").alias("marital_status"),
             col("ca.bdate").alias("birth_date"),
-            col("la.cntry").alias("country"),
-            col("ci.dwh_create_date").alias("create_date")
+            col("la.cntry").alias("country")
         )
 
     return df.withColumn("customer_key", row_number().over(Window.orderBy("customer_id")))
@@ -147,6 +141,7 @@ def transform_fct_sales():
         )
 
     return df
+
 
 # METADATA ********************
 
