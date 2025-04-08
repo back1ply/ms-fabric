@@ -103,7 +103,25 @@ def transform_crm_prd_info():
 
 def transform_crm_sales_details():
     df = spark.table("bronze.crm_sales_details")
-    return df  # No recalculation needed; values are already typed
+    return (
+        df.withColumn(
+            "sls_sales",
+            when(
+                (col("sls_sales").isNull()) |
+                (col("sls_sales") <= 0) |
+                (col("sls_sales") != col("sls_quantity") * abs(col("sls_price"))),
+                col("sls_quantity") * abs(col("sls_price"))
+            ).otherwise(col("sls_sales"))
+        ).withColumn(
+            "sls_price",
+            when(
+                (col("sls_price").isNull()) |
+                (col("sls_price") <= 0),
+                col("sls_sales") / when(col("sls_quantity") != 0, col("sls_quantity")).otherwise(lit(None))
+            ).otherwise(col("sls_price"))
+        )
+    )
+
 
 def transform_erp_cust_az12():
     df = spark.table("bronze.erp_cust_az12")
