@@ -117,31 +117,37 @@ def transform_dim_product():
     return df.withColumn("product_key", row_number().over(Window.orderBy("product_id", "product_number")))
 
 def transform_fct_sales():
+    """
+    Create fact sales table with proper normalization (no dimension attributes)
+    """
     sales = spark.table("silver.crm_sales_details")
-    cust = spark.table("gold.dim_customer")
-    prod = spark.table("gold.dim_product")
-
+    
+    # Join with dimensions only to get surrogate keys
     df = sales.alias("s")\
-        .join(cust.alias("c"), col("s.sls_cust_id") == col("c.customer_id"), "left")\
-        .join(prod.alias("p"), col("s.sls_prd_key") == col("p.product_number"), "left")\
+        .join(
+            spark.table("gold.dim_customer").select("customer_key", "customer_id").alias("c"), 
+            col("s.sls_cust_id") == col("c.customer_id"), 
+            "left"
+        )\
+        .join(
+            spark.table("gold.dim_product").select("product_key", "product_number").alias("p"), 
+            col("s.sls_prd_key") == col("p.product_number"), 
+            "left"
+        )\
         .select(
+            # Only include keys and measures - no denormalized attributes
             col("s.sls_ord_num").alias("order_number"),
-            col("p.product_key").alias("product_key"),
-            col("p.product_name"),
+            col("p.product_key"),
             col("c.customer_key"),
-            col("c.first_name"),
-            col("c.last_name"),
-            col("c.country"),
             col("s.sls_order_dt").alias("order_date"),
-            col("s.sls_quantity").cast("int").alias("quantity"),
-            col("s.sls_price").cast("float").alias("price"),
-            col("s.sls_sales").cast("float").alias("sales_amount"),
+            col("s.sls_ship_dt").alias("shipping_date"), 
             col("s.sls_due_dt").alias("due_date"),
-            col("s.sls_ship_dt").alias("shipping_date")
+            col("s.sls_sales").alias("sales_amount"),
+            col("s.sls_quantity").alias("quantity"),
+            col("s.sls_price").alias("price")
         )
-
+    
     return df
-
 
 # METADATA ********************
 

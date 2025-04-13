@@ -83,7 +83,7 @@ def transform_crm_cust_info():
     df = spark.table("bronze.crm_cust_info")
     w = Window.partitionBy("cst_id").orderBy(col("cst_create_date").desc())
     return (
-        df.filter(col("cst_id").isNotNull())
+        df.filter((col("cst_id").isNotNull()) & (col("cst_id") != 0))
           .withColumn("rn", row_number().over(w))
           .filter(col("rn") == 1)
           .drop("rn")
